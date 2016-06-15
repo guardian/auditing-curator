@@ -13,9 +13,12 @@ export function handler (event, context, callback) {
 	});
 }
 
-export function processEvent ({
-	dynamo, callback, elastic, today
-}) {
+export function processEvent (destruct) {
+	const dynamo = destruct.dynamo;
+	const callback = destruct.callback;
+	const elastic = destruct.elastic;
+	const today = destruct.today;
+
 	elastic.listAllIndices(function (err, data) {
 		if (err) {
 			callback(new Error('Unable to list all indices: ' + err.message));
@@ -27,9 +30,12 @@ export function processEvent ({
 	});
 }
 
-function processIndices ({
-	dynamo, callback, elastic, indices, today
-}) {
+function processIndices (destruct) {
+	const dynamo = destruct.dynamo;
+	const callback = destruct.callback;
+	const elastic = destruct.elastic;
+	const indices = destruct.indices;
+	const today = destruct.today;
 	const indicestoDelete = extractOldIndices(subtractDays(today, dropIndexOlderThanDays), indices);
 	if (indicestoDelete.length) {
 		dropIndices({
@@ -40,9 +46,12 @@ function processIndices ({
 	}
 }
 
-function dropIndices ({
-	dynamo, callback, elastic, indicestoDelete, today
-}) {
+function dropIndices (destruct) {
+	const dynamo = destruct.dynamo;
+	const callback = destruct.callback;
+	const elastic = destruct.elastic;
+	const indicestoDelete = destruct.indicestoDelete;
+	const today = destruct.today;
 	elastic.dropIndices(indicestoDelete.map(index => index.index), function (err) {
 		if (err) {
 			callback(new Error('Unable to drop index: ' + err.message));
@@ -54,9 +63,11 @@ function dropIndices ({
 	});
 }
 
-function logDeletedIndexInDynamo ({
-	dynamo, callback, last, today
-}) {
+function logDeletedIndexInDynamo (destruct) {
+	const dynamo = destruct.dynamo;
+	const callback = destruct.callback;
+	const last = destruct.last;
+	const today = destruct.today;
 	dynamo.putLastIndexDropped(last, today, function (err) {
 		if (err) {
 			callback(new Error('Unable to store in dynamo: ' + err.message));
