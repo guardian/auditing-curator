@@ -6,7 +6,7 @@ const dynamodb = new AWS.DynamoDB({
 
 export function getLastIndexDropped (callback) {
 	dynamodb.query({
-		TableName: 'auditing-CuratorJobsDatabase-FUFQ9QNEXVFX',
+		TableName: 'auditing-curator-CuratorJobsDatabase-1PYNWMLF726PI',
 		ScanIndexForward: false,
 		KeyConditionExpression: 'taskName = :task',
 		ExpressionAttributeValues: {
@@ -22,7 +22,7 @@ export function getLastIndexDropped (callback) {
 
 export function putLastIndexDropped (index, date, callback) {
 	dynamodb.putItem({
-		TableName: 'auditing-CuratorJobsDatabase-FUFQ9QNEXVFX',
+		TableName: 'auditing-curator-CuratorJobsDatabase-1PYNWMLF726PI',
 		Item: {
 			taskName: {
 				S: 'dropExtraIndex'
