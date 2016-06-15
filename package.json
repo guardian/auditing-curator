@@ -1,7 +1,8 @@
 {
-  "name": "lambda-boilerplate",
-  "projectName": "cms-fronts::lambda-boilerplate",
-  "description": "Common boilerplate for lambda deployed on RiffRaff",
+  "name": "auditing-curator",
+  "projectName": "cms-fronts::auditing-curator",
+  "description": "Perform regular cleaning tasks on auditing data store",
+  "repository": "https://github.com/guardian/auditing-curator",
   "version": "1.0.0",
   "private": true,
   "license": "Apache-2.0",
