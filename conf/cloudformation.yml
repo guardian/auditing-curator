@@ -1,0 +1,162 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Perform regular cleaning tasks on auditing data store
+Parameters:
+    Stack:
+        Description: Stack name
+        Type: String
+        Default: cms-fronts
+    App:
+        Description: Application name
+        Type: String
+        Default: auditing-curator
+    Stage:
+        Description: Stage name
+        Type: String
+        AllowedValues:
+            - PROD
+        Default: PROD
+    DeployBucket:
+        Description: Bucket where RiffRaff uploads artifacts on deploy
+        Type: String
+    ElasticSearchDomain:
+        Description: ElasticSearch domain
+        Type: String
+Mappings:
+    StageMap:
+        PROD:
+            CuratorJobsReadThroughput: 1
+            CuratorJobsWriteThroughput: 1
+Resources:
+    ExecutionRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Effect: Allow
+                      Principal:
+                        Service:
+                            - lambda.amazonaws.com
+                      Action: "sts:AssumeRole"
+            Path: /
+            Policies:
+                - PolicyName: logs
+                  PolicyDocument:
+                    Statement:
+                        Effect: Allow
+                        Action:
+                            - "logs:CreateLogGroup"
+                            - "logs:CreateLogStream"
+                            - "logs:PutLogEvents"
+                        Resource: "arn:aws:logs:*:*:*"
+                - PolicyName: lambda
+                  PolicyDocument:
+                    Statement:
+                        Effect: Allow
+                        Action:
+                            - "lambda:InvokeFunction"
+                        Resource: "*"
+                - PolicyName: elasticsearch
+                  PolicyDocument:
+                    Statement:
+                        Effect: Allow
+                        Action:
+                            - es:ESHttpGet
+                            - es:ESHttpDelete
+                        Resource:
+                            - Fn::Join:
+                                - ":"
+                                -
+                                    - arn:aws:es
+                                    - Ref: AWS::Region
+                                    - Ref: AWS::AccountId
+                                    - Fn::Join:
+                                        - /
+                                        -
+                                            - domain
+                                            - Ref: ElasticSearchDomain
+                                            - "*"
+                - PolicyName: dynamo
+                  PolicyDocument:
+                    Statement:
+                        Effect: Allow
+                        Action:
+                          - dynamodb:Query
+                          - dynamodb:PutItem
+                        Resource:
+                          Fn::Join:
+                              - ""
+                              -
+                                  - "arn:aws:dynamodb:"
+                                  - Ref: "AWS::Region"
+                                  - ":"
+                                  - Ref: "AWS::AccountId"
+                                  - ":table/"
+                                  - Ref: CuratorJobsDatabase
+    Lambda:
+        Type: AWS::Lambda::Function
+        Properties:
+            Code:
+                S3Bucket:
+                    Ref: DeployBucket
+                S3Key:
+                    "Fn::Join":
+                        - "/"
+                        -
+                            - curator
+                            - artifact.zip
+            Description: Clean old indexes and data
+            Handler: index.handler
+            MemorySize: 128
+            Role:
+                Fn::GetAtt:
+                    - ExecutionRole
+                    - Arn
+            Runtime: nodejs4.3
+            Timeout: 60
+    EventSource:
+        Type: AWS::Events::Rule
+        Properties:
+            Description: Drop old indices and clean old records
+            ScheduleExpression: rate(12 hours)
+            State: ENABLED
+            Targets:
+                - Arn:
+                    Fn::GetAtt:
+                        - Lambda
+                        - Arn
+                  Id: Lambda
+    LambdaPermission:
+        Type: AWS::Lambda::Permission
+        Properties:
+            FunctionName:
+                Ref: Lambda
+            Action: lambda:InvokeFunction
+            Principal: events.amazonaws.com
+            SourceArn:
+                Fn::GetAtt:
+                    - EventSource
+                    - Arn
+    CuratorJobsDatabase:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+                - AttributeName: taskName
+                  AttributeType: S
+                - AttributeName: startTime
+                  AttributeType: S
+            KeySchema:
+                - AttributeName: taskName
+                  KeyType: HASH
+                - AttributeName: startTime
+                  KeyType: RANGE
+            ProvisionedThroughput:
+                ReadCapacityUnits:
+                    Fn::FindInMap:
+                        - StageMap
+                        - Ref: Stage
+                        - CuratorJobsReadThroughput
+                WriteCapacityUnits:
+                    Fn::FindInMap:
+                        - StageMap
+                        - Ref: Stage
+                        - CuratorJobsWriteThroughput

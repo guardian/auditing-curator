@@ -1,0 +1,30 @@
+defaultStacks:
+    - cms-fronts
+packages:
+    curator:
+        type: aws-s3
+        data:
+            bucket: auditing-lambda-dist
+            cacheControl: "public, max-age=315360000"
+            prefixPackage: true
+            prefixStack: false
+            prefixStage: false
+            publicReadAcl: false
+    lambda:
+        type: aws-lambda
+        data:
+            functions:
+                PROD:
+                    name: auditing-curator-Lambda-57KV4JX0BYZE
+                    filename: artifact.zip
+recipes:
+    upload:
+        actionsBeforeApp:
+            - curator.uploadStaticFiles
+    lambda:
+        actionsBeforeApp:
+            - lambda.updateLambda
+    default:
+        depends:
+            - upload
+            - lambda
